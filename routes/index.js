@@ -1,8 +1,3 @@
-
-/*
- * GET home page.
- */
-
 exports.custom = function(url, req, res) {
 	res.redirect(301, url);
 };

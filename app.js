@@ -10,6 +10,10 @@ var path = require('path');
 
 var app = express();
 
+var config = require('./config/config.json');
+var redirects = require('./config/redirects.json');
+var sendgrid = require('./config/sendgrid');
+
 // all environments
 app.set('port', process.env.PORT || 3000);
 app.set('views', path.join(__dirname, 'views'));
@@ -22,9 +26,48 @@ app.use(express.methodOverride());
 app.use(app.router);
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Enable CORS for the 404 reporting
+app.all('*', function(req, res, next) {
+	res.header("Access-Control-Allow-Origin", "*");
+	res.header("Access-Control-Allow-Headers", "X-Requested-With");
+	next();
+});
+
 // development only
 if ('development' == app.get('env')) {
   app.use(express.errorHandler());
+}
+
+if (config["404-email"]) {
+	app.get('/found-404', function (req, res) {
+		if (req.query.url) {
+			sendgrid.send({
+				to: config["404-email"],
+				from: config["404-email"],
+				subject: "404 URL found: " + req.query.url,
+				text: "404 URL: " + req.query.url
+			});
+		}
+		res.end();
+	});
+}
+
+var url;
+
+for(url in redirects.pages) {
+  if (Object.prototype.hasOwnProperty(redirects.pages, url)) {
+    app.get(url, function (req, res) {
+      res.redirect(301, redirects.sites[redirects.pages[url]]);
+    });
+  }
+}
+
+for (url in redirects.custom) {
+  if (Object.prototype.hasOwnProperty(redirects.pages, url)) {
+    app.get(url, function (req, res) {
+      res.redirect(301, redirects.custom[url]);
+    });
+  }
 }
 
 // Redirect each post here
